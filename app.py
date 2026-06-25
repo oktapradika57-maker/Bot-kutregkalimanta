@@ -1,122 +1,73 @@
 import streamlit as st
-import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
 from datetime import datetime
 
-# ==========================================
-# 1. KONFIGURASI UTAMA (WAJIB DIISI)
-# ==========================================
+# =========================================================
+# UBAH BAGIAN INI SAJA (BERADA DI BARIS 11)
+# =========================================================
 FOLDER_DRIVE_ID = '1En5tPkQsf1OQNpRgj1CcKpgQGo5LtCl5'
 
-# GANTI DENGAN DATA ASLI ANDA DI SINI:
-SPREADSHEET_NAME = 'Data Form Streamlit'  # <-- Ganti nama Sheet Anda
-USER_EMAIL_ASLI = 'oktapradika57@gmail.com'   # <-- Ganti dengan Gmail Anda (Contoh: bahrul@gmail.com)
+scope = ['https://www.googleapis.com/auth/drive']
 
-scope = [
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
-]
+st.title("📸 Kamera Pengunggah Google Drive")
+st.write("Ambil foto di bawah ini untuk langsung disimpan ke Google Drive.")
 
-st.title("📸 Form Absensi / Input Kamera Langsung")
 kredensial_valid = False
 
-# ==========================================
-# PEMBACAAN SECRETS YANG PALING AMAN
-# ==========================================
+# =========================================================
+# MEMBACA KREDENSIAL SECRETS
+# =========================================================
 try:
     if "gcp_service_account" in st.secrets:
-        # Membaca dictionary TOML secara langsung
         creds_dict = dict(st.secrets["gcp_service_account"])
-        
-        # WAJIB: Mencegah error biner dengan mengembalikan format baris baru (enter)
+        # Mengatasi error pembacaan format private key baris baru
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client_sheets = gspread.authorize(creds)
         service_drive = build('drive', 'v3', credentials=creds)
         kredensial_valid = True
     else:
-        st.error("❌ Komponen Secrets '[gcp_service_account]' tidak ditemukan.")
+        st.error("❌ Secrets '[gcp_service_account]' belum dikonfigurasi di Streamlit Cloud.")
 except Exception as e:
-    st.error(f"❌ Terjadi kesalahan saat membaca rahasia (Secrets): {e}")
+    st.error(f"❌ Gagal membaca Secrets: {e}")
 
-# ==========================================
-# 2. FUNGSI UPLOAD FOTO + TRANSFER KEPEMILIKAN
-# ==========================================
-def upload_foto_to_drive(bytes_foto, file_name):
-    try:
-        file_metadata = {
-            'name': file_name,
-            'parents': [FOLDER_DRIVE_ID]
-        }
-        media = MediaIoBaseUpload(bytes_foto, mimetype="image/png", resumable=True)
-        
-        uploaded_file = service_drive.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id, webViewLink'
-        ).execute()
-        
-        file_id = uploaded_file.get('id')
-        
-        # Pindahkan kepemilikan file ke Email Anda agar menggunakan kuota Anda
-        permission_metadata = {
-            'type': 'user',
-            'role': 'owner',
-            'emailAddress': USER_EMAIL_ASLI
-        }
-        
-        service_drive.permissions().create(
-            fileId=file_id,
-            body=permission_metadata,
-            transferOwnership=True
-        ).execute()
-        
-        return uploaded_file.get('webViewLink')
-    except Exception as e:
-        st.error(f"Gagal upload foto ke Drive atau gagal transfer kepemilikan: {e}")
-        return None
-
-# ==========================================
-# 3. TAMPILAN INTERFACE FORM STREAMLIT
-# ==========================================
+# =========================================================
+# PROSES AMBIL FOTO & UPLOAD
+# =========================================================
 if kredensial_valid:
-    st.write("Silakan isi nama, keterangan, dan ambil foto langsung dari kamera HP Anda.")
+    # Komponen kamera langsung tanpa form agar instan
+    foto_kamera = st.camera_input("Silakan Ambil Foto:")
     
-    with st.form(key='input_form', clear_on_submit=True):
-        nama = st.text_input("Nama Lengkap:")
-        catatan = st.text_area("Catatan/Keterangan:")
-        foto_kamera = st.camera_input("Ambil Foto Langsung dari Kamera:")
-        
-        submit_button = st.form_submit_button(label='Kirim Data & Foto')
-
-    if submit_button:
-        if nama and foto_kamera:
-            if USER_EMAIL_ASLI == 'oktapradika57@gmail.com':
-                st.error("❌ Eror: Anda belum mengubah USER_EMAIL_ASLI di dalam kode script!")
-            else:
-                with st.spinner("Sedang memproses, mengunggah, dan mentransfer kuota file..."):
-                    waktu_sekarang = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    nama_file_foto = f"{waktu_sekarang}_{nama}.png"
-                    
-                    buffer_foto = io.BytesIO(foto_kamera.read())
-                    url_foto = upload_foto_to_drive(buffer_foto, nama_file_foto)
-                    
-                    if url_foto:
-                        try:
-                            sheet = client_sheets.open(SPREADSHEET_NAME).sheet1
-                            timestamp_sheet = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            
-                            baris_baru = [nama, catatan, url_foto, timestamp_sheet]
-                            sheet.append_row(baris_baru)
-                            
-                            st.success("🎉 Sukses Besar! Data tersimpan dan foto berhasil masuk ke Drive menggunakan kuota Anda!")
-                        except Exception as e:
-                            st.error(f"Gagal menulis data ke Google Sheets: {e}")
-        else:
-            st.warning("Mohon isi Kolom Nama dan Ambil Foto terlebih dahulu!")
-else:
-    st.warning("⚠️ Form dikunci sementara karena kredensial belum siap.")
+    if foto_kamera:
+        with st.spinner("Sedang mengunggah foto langsung ke Google Drive Anda..."):
+            try:
+                # Membuat nama file unik berdasarkan waktu saat foto diambil
+                waktu_sekarang = datetime.now().strftime("%Y%m%d_%H%M%S")
+                nama_file_foto = f"Foto_{waktu_sekarang}.png"
+                
+                # Konversi file foto ke byte stream
+                buffer_foto = io.BytesIO(foto_kamera.read())
+                
+                file_metadata = {
+                    'name': nama_file_foto,
+                    'parents': [FOLDER_DRIVE_ID]
+                }
+                
+                media = MediaIoBaseUpload(buffer_foto, mimetype="image/png", resumable=True)
+                
+                # Eksekusi upload menggunakan akun bot ke folder bersama Anda
+                uploaded_file = service_drive.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields='id, webViewLink'
+                ).execute()
+                
+                st.success(f"🎉 Berhasil! Foto tersimpan di Drive dengan nama: {nama_file_foto}")
+                st.balloons()
+                
+            except Exception as e:
+                st.error(f"❌ Gagal mengunggah ke Drive: {e}")
+                st.info("Pastikan Anda sudah membagikan (Share) folder Drive Anda ke email bot (sebagai Editor).")
