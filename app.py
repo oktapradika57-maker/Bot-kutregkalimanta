@@ -95,7 +95,7 @@ if kredensial_valid:
 
     if submit_button:
         if nama and foto_kamera:
-            if USER_EMAIL_ASLI == 'TULIS_EMAIL_GMAIL_ASLI_ANDA_DI_SINI':
+            if USER_EMAIL_ASLI == 'oktapradika57@gmail.com':
                 st.error("❌ Eror: Anda belum mengubah USER_EMAIL_ASLI di dalam kode script!")
             else:
                 with st.spinner("Sedang memproses, mengunggah, dan mentransfer kuota file..."):
