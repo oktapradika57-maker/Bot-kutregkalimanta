@@ -1,44 +1,47 @@
 import streamlit as st
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
 from datetime import datetime
 
 # =========================================================
-# UBAH BAGIAN INI SAJA (BERADA DI BARIS 11)
+# ⚠️ UBAH DI SINI: MASUKKAN ID FOLDER GOOGLE DRIVE ANDA
 # =========================================================
-FOLDER_DRIVE_ID = '1En5tPkQsf1OQNpRgj1CcKpgQGo5LtCl5'
+FOLDER_DRIVE_ID = 'MASUKKAN_ID_FOLDER_DRIVE_ANDA_DI_SINI'
 
-scope = ['https://www.googleapis.com/auth/drive']
+# Konfigurasi Tampilan Halaman
+st.set_page_config(page_title="Kinarya Utama Teknik - Kamera", layout="centered")
 
 st.title("📸 Kamera Pengunggah Google Drive")
-st.write("Ambil foto di bawah ini untuk langsung disimpan ke Google Drive.")
+st.write("Ambil foto di bawah ini untuk langsung disimpan ke Google Drive pribadi Anda.")
 
 kredensial_valid = False
 
 # =========================================================
-# MEMBACA KREDENSIAL SECRETS
+# MEMBACA KREDENSIAL OAUTH2 DARI STREAMLIT SECRETS
 # =========================================================
 try:
-    if "gcp_service_account" in st.secrets:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        # Mengatasi error pembacaan format private key baris baru
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-        
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    if "gcp_oauth" in st.secrets:
+        creds = Credentials(
+            token=None,
+            refresh_token=st.secrets["gcp_oauth"]["refresh_token"],
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=st.secrets["gcp_oauth"]["client_id"],
+            client_secret=st.secrets["gcp_oauth"]["client_secret"]
+        )
         service_drive = build('drive', 'v3', credentials=creds)
         kredensial_valid = True
     else:
-        st.error("❌ Secrets '[gcp_service_account]' belum dikonfigurasi di Streamlit Cloud.")
+        st.error("❌ Periksa Streamlit Secrets! Kotak '[gcp_oauth]' belum diisi.")
 except Exception as e:
-    st.error(f"❌ Gagal membaca Secrets: {e}")
+    st.error(f"❌ Gagal memuat kredensial: {e}")
 
 # =========================================================
 # PROSES AMBIL FOTO & UPLOAD
 # =========================================================
 if kredensial_valid:
-    # Komponen kamera langsung tanpa form agar instan
+    # Komponen kamera langsung tanpa form agar instan dan cepat
     foto_kamera = st.camera_input("Silakan Ambil Foto:")
     
     if foto_kamera:
@@ -58,7 +61,7 @@ if kredensial_valid:
                 
                 media = MediaIoBaseUpload(buffer_foto, mimetype="image/png", resumable=True)
                 
-                # Eksekusi upload menggunakan akun bot ke folder bersama Anda
+                # Eksekusi upload langsung atas nama akun Gmail Anda
                 uploaded_file = service_drive.files().create(
                     body=file_metadata,
                     media_body=media,
@@ -70,4 +73,4 @@ if kredensial_valid:
                 
             except Exception as e:
                 st.error(f"❌ Gagal mengunggah ke Drive: {e}")
-                st.info("Pastikan Anda sudah membagikan (Share) folder Drive Anda ke email bot (sebagai Editor).")
+                st.info("Pastikan ID Folder di Baris 10 sudah benar dan akun Anda memiliki ruang penyimpanan.")
