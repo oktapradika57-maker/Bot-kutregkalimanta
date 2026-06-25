@@ -4,7 +4,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
-import json
 from datetime import datetime
 
 # ==========================================
@@ -24,23 +23,25 @@ scope = [
 st.title("📸 Form Absensi / Input Kamera Langsung")
 kredensial_valid = False
 
+# ==========================================
+# PEMBACAAN SECRETS YANG PALING AMAN
+# ==========================================
 try:
-    if "gcp_json" in st.secrets:
-        # Membaca format JSON mentah dari Secrets untuk menghindari error padding/TOML
-        creds_dict = json.loads(st.secrets["gcp_json"])
+    if "gcp_service_account" in st.secrets:
+        # Membaca dictionary TOML secara langsung
+        creds_dict = dict(st.secrets["gcp_service_account"])
         
-        # Memperbaiki pembacaan text \n pada private key
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        # WAJIB: Mencegah error biner dengan mengembalikan format baris baru (enter)
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client_sheets = gspread.authorize(creds)
         service_drive = build('drive', 'v3', credentials=creds)
         kredensial_valid = True
     else:
-        st.error("❌ Komponen Secrets 'gcp_json' tidak ditemukan. Pastikan Langkah 1 sudah dilakukan.")
+        st.error("❌ Komponen Secrets '[gcp_service_account]' tidak ditemukan.")
 except Exception as e:
-    st.error(f"❌ Gagal memuat kredensial dari Streamlit Secrets: {e}")
+    st.error(f"❌ Terjadi kesalahan saat membaca rahasia (Secrets): {e}")
 
 # ==========================================
 # 2. FUNGSI UPLOAD FOTO + TRANSFER KEPEMILIKAN
@@ -53,7 +54,6 @@ def upload_foto_to_drive(bytes_foto, file_name):
         }
         media = MediaIoBaseUpload(bytes_foto, mimetype="image/png", resumable=True)
         
-        # Langkah A: Upload file ke folder menggunakan akun robot
         uploaded_file = service_drive.files().create(
             body=file_metadata,
             media_body=media,
@@ -62,7 +62,7 @@ def upload_foto_to_drive(bytes_foto, file_name):
         
         file_id = uploaded_file.get('id')
         
-        # Langkah B: Langsung pindahkan kepemilikan file ke Email Utama Anda agar memakai kuota Anda sendiri
+        # Pindahkan kepemilikan file ke Email Anda agar menggunakan kuota Anda
         permission_metadata = {
             'type': 'user',
             'role': 'owner',
