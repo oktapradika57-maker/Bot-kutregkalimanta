@@ -4,14 +4,16 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
-import json  # Tambahkan import ini di bagian atas
 from datetime import datetime
 
 # ==========================================
 # 1. KONFIGURASI ID GOOGLE SPREADSHEET & DRIVE
 # ==========================================
+# ID Folder Drive Anda yang valid
 FOLDER_DRIVE_ID = '1En5tPkQsf1OQNpRgj1CcKpgQGo5LtCl5'
-SPREADSHEET_NAME = 'TULIS_NAMA_GOOGLE_SHEET_ANDA_DI_SINI'
+
+# GANTI DENGAN NAMA FILE SPREADSHEET ANDA YANG SEBENARNYA
+SPREADSHEET_NAME = 'Data Form Streamlit'
 
 scope = [
     'https://www.googleapis.com/auth/spreadsheets',
@@ -19,19 +21,17 @@ scope = [
 ]
 
 try:
-    # Mengambil string JSON mentah dari Secrets
-    json_string = st.secrets["gcp_service_account"]["json_data"]
+    # Membaca dictionary TOML rahasia langsung dari Streamlit Secrets
+    creds_dict = st.secrets["gcp_service_account"]
     
-    # Mengonversi string menjadi dictionary Python secara otomatis
-    creds_dict = json.loads(json_string)
-    
-    # Otorisasi menggunakan dictionary
+    # Otorisasi layanan Google menggunakan kredensial Secrets
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client_sheets = gspread.authorize(creds)
     service_drive = build('drive', 'v3', credentials=creds)
 except Exception as e:
     st.error(f"Gagal memuat kredensial dari Streamlit Secrets: {e}")
     st.stop()
+
 # ==========================================
 # 2. FUNGSI UNTUK UPLOAD FOTO KE GOOGLE DRIVE
 # ==========================================
@@ -50,7 +50,7 @@ def upload_foto_to_drive(file_uploaded, file_name):
             fields='id, webViewLink'
         ).execute()
         
-        # Mengubah izin file foto agar bisa dilihat oleh semua orang yang memiliki link
+        # Mengubah izin file foto agar bisa dilihat publik (oleh siapa saja yang memiliki link)
         service_drive.permissions().create(
             fileId=uploaded_file.get('id'),
             body={'type': 'anyone', 'role': 'reader'}
