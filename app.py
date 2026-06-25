@@ -4,33 +4,34 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
+import json  # Tambahkan import ini di bagian atas
 from datetime import datetime
 
 # ==========================================
 # 1. KONFIGURASI ID GOOGLE SPREADSHEET & DRIVE
 # ==========================================
-# SILAKAN GANTI DENGAN ID FOLDER DRIVE DAN NAMA SPREADSHEET ANDA
 FOLDER_DRIVE_ID = '1En5tPkQsf1OQNpRgj1CcKpgQGo5LtCl5'
-SPREADSHEET_NAME = 'Data Form Streamlit'
+SPREADSHEET_NAME = 'TULIS_NAMA_GOOGLE_SHEET_ANDA_DI_SINI'
 
-# Setup Cakupan Akses API
 scope = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
 ]
 
 try:
-    # Mengambil kredensial secara aman dari Streamlit Secrets TOML
-    creds_dict = st.secrets["gcp_service_account"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    # Mengambil string JSON mentah dari Secrets
+    json_string = st.secrets["gcp_service_account"]["json_data"]
     
-    # Otorisasi layanan Google Sheets & Drive
+    # Mengonversi string menjadi dictionary Python secara otomatis
+    creds_dict = json.loads(json_string)
+    
+    # Otorisasi menggunakan dictionary
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client_sheets = gspread.authorize(creds)
     service_drive = build('drive', 'v3', credentials=creds)
 except Exception as e:
     st.error(f"Gagal memuat kredensial dari Streamlit Secrets: {e}")
     st.stop()
-
 # ==========================================
 # 2. FUNGSI UNTUK UPLOAD FOTO KE GOOGLE DRIVE
 # ==========================================
