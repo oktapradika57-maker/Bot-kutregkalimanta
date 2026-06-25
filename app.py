@@ -8,7 +8,7 @@ from datetime import datetime
 # =========================================================
 # ⚠️ UBAH DI SINI: MASUKKAN ID FOLDER GOOGLE DRIVE ANDA
 # =========================================================
-FOLDER_DRIVE_ID = 'MASUKKAN_ID_FOLDER_DRIVE_ANDA_DI_SINI'
+FOLDER_DRIVE_ID = '1En5tPkQsf1OQNpRgj1CcKpgQGo5LtCl5'
 
 # Konfigurasi Tampilan Halaman
 st.set_page_config(page_title="Kinarya Utama Teknik - Kamera", layout="centered")
